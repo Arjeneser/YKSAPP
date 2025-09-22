@@ -1,0 +1,148 @@
+// --- EK: Track enumu (ASCII kullan: SOZ, DIL) ---
+enum Track {
+  SAY
+  EA
+  SOZ
+  DIL
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+  track               Track    @default(SAY)
+  examYear            Int      @default(2026)
+  weeklyMinutesTarget Int      @default(900)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                      String        @id @default(cuid())
+  email                   String        @unique
+  name                    String?
+  image                   String?
+  createdAt               DateTime      @default(now())
+  memberships             Membership[]
+  enrollments             Enrollment[]
+  examRecords             ExamRecord[]
+  sentMessages            Message[]     @relation("sent")
+  rcvMessages             Message[]     @relation("rcv")
+  appointmentsAsStudent   Appointment[] @relation("asStudent")
+  appointmentsAsCounselor Appointment[] @relation("asCounselor")
+
+  profile      UserProfile? // ← EKLENEN SATIR
+  StudySession StudySession[]
+}
+
+model Organization {
+  id         String       @id @default(cuid())
+  name       String
+  createdAt  DateTime     @default(now())
+  members    Membership[]
+  classrooms Classroom[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+}
+
+enum Role {
+  student
+  counselor
+  school_admin
+  course_admin
+  super_admin
+}
+
+model Classroom {
+  id             String       @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  enrollments    Enrollment[]
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  classroomId String
+  user        User      @relation(fields: [userId], references: [id])
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, classroomId])
+}
+
+model Appointment {
+  id             String   @id @default(cuid())
+  organizationId String
+  studentId      String
+  counselorId    String
+  startsAt       DateTime
+  endsAt         DateTime
+  notes          String?
+  student        User     @relation("asStudent", fields: [studentId], references: [id])
+  counselor      User     @relation("asCounselor", fields: [counselorId], references: [id])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  organizationId String
+  fromId         String
+  toId           String
+  body           String
+  createdAt      DateTime @default(now())
+  from           User     @relation("sent", fields: [fromId], references: [id])
+  to             User     @relation("rcv", fields: [toId], references: [id])
+}
+
+model ExamRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String
+  score          Float
+  date           DateTime
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+enum SessionMode {
+  POMODORO
+  FREE
+}
+
+model StudySession {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  mode      SessionMode @default(FREE)
+  subject   String?
+  topic     String?
+  startedAt DateTime
+  endedAt   DateTime?
+  minutes   Int         @default(0)
+  mood      Int?
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId, startedAt])
+}
